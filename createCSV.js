@@ -32,22 +32,27 @@ function sortRows(rows) {
   );
 }
 
-function addRows(rows) {
+async function addRows(rows) {
   const sortedRows = sortRows(rows);
 
-  sortedRows.forEach((row) => {
-    csv += `${row.lineItemNumber},
-    ${row.interiorExterior},
-    ${row.floorLevel},
-    ${row.roomArea},
-    ${row.item},
-    ${row.description.replace(/(\r\n|\n|\r)/gm, '')},
-    ${getImages(row.attachments)}\n`;
-  });
+  for (const row in sortedRows) {
+    const images = getImages(row.attachments);
+
+    csv += `${row.lineItemNumber},${row.interiorExterior},${row.floorLevel},${
+      row.roomArea
+    },${row.item},"${row.description.replace(
+      /(\r\n|\n|\r)/gm,
+      '',
+    )}",${images}\n`;
+  }
 }
 
-addRows(interior);
+async function runAsync() {
+  await addRows(interior);
 
-addRows(exterior);
+  await addRows(exterior);
 
-fs.writeFileSync('data.csv', csv, 'utf-8');
+  fs.writeFileSync('data.csv', csv, 'utf-8');
+}
+
+runAsync();
