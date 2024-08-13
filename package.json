@@ -1,4 +1,8 @@
 {
   "name": "tarion-list",
-  "packageManager": "yarn@4.2.2"
+  "type": "module",
+  "scripts": {
+    "build": "node createCSV.js"
+  },
+  "packageManager": "yarn@4.4.0"
 }
