@@ -13,6 +13,16 @@ const exterior = data.returnValue.filter(
   (row) => row.interiorExterior === 'EXTERIOR',
 );
 
+function getImages(attachments) {
+  if (attachments.length > 0) {
+    const baseUrl = 'https://myhome.tarion.com';
+
+    return `${baseUrl}${attachments[0].url}`;
+  }
+
+  return '';
+}
+
 function sortRows(rows) {
   return rows.sort(
     (a, b) =>
@@ -26,9 +36,13 @@ function addRows(rows) {
   const sortedRows = sortRows(rows);
 
   sortedRows.forEach((row) => {
-    csv += `${row.lineItemNumber},${row.interiorExterior},${row.floorLevel},${
-      row.roomArea
-    },${row.item},${row.description.replace(/(\r\n|\n|\r)/gm, '')}\n`;
+    csv += `${row.lineItemNumber},
+    ${row.interiorExterior},
+    ${row.floorLevel},
+    ${row.roomArea},
+    ${row.item},
+    ${row.description.replace(/(\r\n|\n|\r)/gm, '')},
+    ${getImages(row.attachments)}\n`;
   });
 }
 
