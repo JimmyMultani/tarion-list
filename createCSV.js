@@ -41,7 +41,7 @@ async function addRows(rows) {
 
     csv += `${row.lineItemNumber},${row.interiorExterior},${row.floorLevel},${
       row.roomArea
-    },${row.item},"${row.description.replace(
+    },"${row.item}","${row.description.replace(
       /(\r\n|\n|\r)/gm,
       '',
     )}",${images}\n`;
