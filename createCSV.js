@@ -35,7 +35,7 @@ function sortRows(rows) {
 async function addRows(rows) {
   const sortedRows = sortRows(rows);
 
-  for (const row in sortedRows) {
+  for (const row of sortedRows) {
     const images = getImages(row.attachments);
 
     csv += `${row.lineItemNumber},${row.interiorExterior},${row.floorLevel},${
