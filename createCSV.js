@@ -31,8 +31,6 @@ const cookies = cookiesString.split(';').map((item) => {
   };
 });
 
-console.log(cookies);
-
 async function getImageSrcFromIframe(iframeUrl) {
   const browser = await puppeteer.launch();
   const page = await browser.newPage();
