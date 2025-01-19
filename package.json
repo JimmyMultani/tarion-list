@@ -2,7 +2,7 @@
   "name": "tarion-list",
   "type": "module",
   "scripts": {
-    "build": "node createCSV.js"
+    "build": "node index.js"
   },
   "packageManager": "yarn@4.4.0",
   "dependencies": {
