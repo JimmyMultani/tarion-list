@@ -4,5 +4,8 @@
   "scripts": {
     "build": "node createCSV.js"
   },
-  "packageManager": "yarn@4.4.0"
+  "packageManager": "yarn@4.4.0",
+  "dependencies": {
+    "puppeteer": "^24.1.0"
+  }
 }
