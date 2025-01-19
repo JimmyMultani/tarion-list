@@ -17,8 +17,7 @@ function getImages(attachments) {
   if (attachments.length > 0) {
     const baseUrl = 'https://myhome.tarion.com';
 
-    // return `${baseUrl}${attachments[0].url}`;
-    return '';
+    return `${baseUrl}${attachments[0].url}`;
   }
 
   return '';
