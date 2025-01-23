@@ -2,6 +2,34 @@ import fs from 'fs';
 import puppeteer from 'puppeteer';
 import data from './data.json' assert { type: 'json' };
 
+async function downloadImageFromBlobUrl(blobUrl) {
+  const browser = await puppeteer.launch();
+  const page = await browser.newPage();
+
+  // Create a temporary HTML page
+  const html = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Temporary Image Page</title>
+        </head>
+        <body>
+            <img src="${blobUrl}" />
+        </body>
+        </html>
+    `;
+
+  // Navigate to the temporary page
+  await page.setContent(html);
+
+  // Capture the screenshot
+  const imageBuffer = await page.screenshot({ type: 'png' });
+
+  await browser.close();
+
+  return imageBuffer;
+}
+
 const headers =
   'Item Number,Interior/Exterior,Floor/Level,Room/Area,Item,Description,Attachments';
 
@@ -14,24 +42,21 @@ const exterior = data.returnValue.filter(
   (row) => row.interiorExterior === 'EXTERIOR',
 );
 
-const cookiesString =
-  'CookieConsentPolicy=0:1; LSKey-c$CookieConsentPolicy=0:1; guest_uuid_essential_0DM5W00000000at=6d240266-ac20-4742-8981-4f339d524955; oid=00D5X0000008aQ3; PreferredLanguage0DM5W00000000atWAA=en-US; oinfo=c3RhdHVzPUFDVElWRSZ0eXBlPTYmb2lkPTAwRDVYMDAwMDAwOGFRMw==; autocomplete=1; sid=00D5X0000008aQ3!AQEAQIKOR0mX41ml_ef4swbzCLuHPGbVfPP9ISewTuDyG4t5y_vaDc5o2WH.TEH9joFKtcvt3V4B9pjqJeAdAC1pSofTLLUN; sid_Client=W000000izyGX0000008aQ3; clientSrc=76.67.127.58; inst=APP_N3; __Secure-has-sid=1';
+const cookieSettings = {
+  sid: '00D5X0000008aQ3!AQEAQL0UUEqnQEYfLrSY4rP8.blUzcsni.oEDWXiD.ho1Dbqp5bzlOCIS.hWy_DejAcmxmiPtnfwEcWzMZX5G0KcL11ueqvi',
+};
 
-const cookies = cookiesString.split(';').map((item) => {
-  const arr = item.split('=');
-  const name = arr[0].trim().replace('"', '');
-  const value = arr[1];
-
+const cookies = Object.keys(cookieSettings).map((key) => {
   return {
-    name,
-    value,
+    name: key,
+    value: cookieSettings[key],
     domain: 'myhome.tarion.com',
     path: '/',
     secure: true,
   };
 });
 
-async function getImageSrcFromIframe(iframeUrl) {
+async function getImageBlobFromIframe(iframeUrl) {
   const browser = await puppeteer.launch();
   const page = await browser.newPage();
 
@@ -39,36 +64,40 @@ async function getImageSrcFromIframe(iframeUrl) {
   await browser.setCookie(...cookies);
   // await Promise.all(cookies.map((cookie) => page.setCookie(cookie)));
 
-  await page.goto(iframeUrl);
+  const url = new URL(iframeUrl);
+  const id = url.searchParams.get('cmItemId');
+  const newUrl = `https://myhome.tarion.com/myhome/apex/MH_PreviewPage?cmItemId=${id}`;
 
-  // Wait for the iframe to load and its content to render
-  await page.waitForSelector('iframe');
+  await page.goto(newUrl);
 
-  await page.waitForFunction(() => {
-    return (
-      document.querySelector('iframe')?.contentDocument?.readyState ===
-      'complete'
-    );
-  });
+  // Get the iframe element
+  const iframeHandle = await page.waitForSelector('iframe');
 
-  // Extract the image src from the rendered iframe content
-  const imageSrc = await page.evaluate(() => {
-    const iframes = document.querySelectorAll('iframe');
+  // Get the iframe's frame
+  const iframeFrame = await iframeHandle.contentFrame();
 
-    const image = iframes[0]?.contentDocument?.querySelector('img');
-
-    return image ? image.src : null;
-  });
+  const frameElement = await iframeFrame.frameElement();
+  const blobUrl = await (await frameElement.getProperty('src')).jsonValue();
+  console.log('blobUrl', blobUrl);
 
   await browser.close();
-  return imageSrc;
+  return blobUrl;
 }
 
-async function getImages(attachments) {
+async function getImages(attachments, id) {
   if (attachments.length > 0) {
     const baseUrl = 'https://myhome.tarion.com';
 
-    return await getImageSrcFromIframe(`${baseUrl}${attachments[0].url}`);
+    const blobUrl = await getImageBlobFromIframe(
+      `${baseUrl}${attachments[0].url}`,
+    );
+
+    const imageBuffer = await downloadImageFromBlobUrl(blobUrl);
+
+    // Save the image to a file
+    await fs.writeFile(`${id}.jpg`, imageBuffer);
+
+    return id;
   }
 
   return '';
@@ -87,7 +116,7 @@ async function addRows(rows) {
   const sortedRows = sortRows(rows);
 
   for (const row of sortedRows) {
-    const images = await getImages(row.attachments);
+    const images = await getImages(row.attachments, row.lineItemNumber);
 
     csv += `${row.lineItemNumber},${row.interiorExterior},${row.floorLevel},${
       row.roomArea
@@ -99,9 +128,27 @@ async function addRows(rows) {
 }
 
 async function runAsync() {
-  await addRows(interior);
+  await addRows([
+    {
+      accordionName: 'Item Number - 182',
+      attachments: [
+        {
+          attachmentName: 'Tarion-1year-216.jpg',
+          url: '/myhome/s/file-preview?cmItemId=A1001001A24D26A04313J14228',
+        },
+      ],
+      description:
+        'The builder didn’t provide a proper AC rough-in. Only included electrical wire and no duct connection on the 4th floor deck. This left us with the only possible connection on the side of the house which overhangs the neighbour’s property. This resulted in legal issues for us.',
+      floorLevel: 'Lot/Property/Yard',
+      interiorExterior: 'EXTERIOR',
+      item: 'Other (Please describe)',
+      lineItemNumber: '182',
+      roomArea: 'Not Applicable (Choose your next selection)',
+    },
+  ]);
+  // await addRows(interior);
 
-  await addRows(exterior);
+  // await addRows(exterior);
 
   fs.writeFileSync('data.csv', csv, 'utf-8');
 }
